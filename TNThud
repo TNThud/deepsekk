@@ -1,4 +1,7 @@
--- ================= KHỞI TẠO VÀ BIẾN TOÀN CỤC =================
+-- =================================================================================
+-- TNT SCRIPT HUB - PHIÊN BẢN HOÀN CHỈNH (FULL 10 TABS)
+-- Tác giả: TNT Team (Dựa trên yêu cầu của bạn)
+-- =================================================================================
 if game:GetService("CoreGui"):FindFirstChild("TNT_Hub_UI") then
     game:GetService("CoreGui").TNT_Hub_UI:Destroy()
 end
@@ -6,22 +9,17 @@ end
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VirtualUser = game:GetService("VirtualUser")
+local Lighting = game:GetService("Lighting")
 local player = Players.LocalPlayer
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+local CommF_ = Remotes:WaitForChild("CommF_")
 
--- Bảng lưu trữ trạng thái các chức năng
-local Flags = {
-    AutoFarmLevel = false,
-    AutoFarmChest = false,
-    AutoFarmBone = false,
-    AutoFarmMastery = false,
-    SelectedMasteryWeapon = "Sword", -- Sword, Gun, Melee
-    ESP_Players = false,
-    ESP_Fruits = false,
-    ESP_Chests = false,
-}
+local Flags = {}
+local ESPObjects = {}
+local NotifiedFruits = {}
 
 -- ================= GIAO DIỆN CHÍNH =================
 local ScreenGui = Instance.new("ScreenGui")
@@ -55,7 +53,6 @@ UIScale.Scale = viewport.X < 800 and (viewport.X / 700) or 1
 local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0, 10)
 UICorner.Parent = MainFrame
-
 local UIStroke = Instance.new("UIStroke")
 UIStroke.Color = AccentColor
 UIStroke.Thickness = 1.5
@@ -66,18 +63,12 @@ UIStroke.Parent = MainFrame
 local dragging, dragInput, dragStart, startPos
 MainFrame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = MainFrame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dragging = false end
-        end)
+        dragging = true; dragStart = input.Position; startPos = MainFrame.Position
+        input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
     end
 end)
 MainFrame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
-    end
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
 end)
 UserInputService.InputChanged:Connect(function(input)
     if input == dragInput and dragging then
@@ -86,27 +77,21 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- Sidebar (Cột trái)
+-- Sidebar (Có thanh cuộn)
 local Sidebar = Instance.new("Frame")
 Sidebar.Name = "Sidebar"
 Sidebar.Parent = MainFrame
 Sidebar.BackgroundColor3 = SidebarColor
 Sidebar.Size = UDim2.new(0, 150, 1, 0)
 Sidebar.BorderSizePixel = 0
-
 local SidebarCorner = Instance.new("UICorner")
 SidebarCorner.CornerRadius = UDim.new(0, 10)
 SidebarCorner.Parent = Sidebar
 
-local LogoFrame = Instance.new("Frame")
-LogoFrame.Parent = Sidebar
-LogoFrame.BackgroundTransparency = 1
-LogoFrame.Size = UDim2.new(1, 0, 0, 70)
-LogoFrame.Position = UDim2.new(0, 0, 0, 10)
-
 local Logo = Instance.new("TextLabel")
-Logo.Parent = LogoFrame
+Logo.Parent = Sidebar
 Logo.BackgroundTransparency = 1
+Logo.Position = UDim2.new(0, 0, 0, 10)
 Logo.Size = UDim2.new(1, 0, 0, 40)
 Logo.Font = Enum.Font.GothamBlack
 Logo.Text = "TNT"
@@ -114,55 +99,40 @@ Logo.TextColor3 = AccentColor
 Logo.TextSize = 32
 
 local SubLogo = Instance.new("TextLabel")
-SubLogo.Parent = LogoFrame
+SubLogo.Parent = Sidebar
 SubLogo.BackgroundTransparency = 1
-SubLogo.Position = UDim2.new(0, 0, 0, 40)
+SubLogo.Position = UDim2.new(0, 0, 0, 45)
 SubLogo.Size = UDim2.new(1, 0, 0, 15)
 SubLogo.Font = Enum.Font.GothamBold
 SubLogo.Text = "Script Hub"
 SubLogo.TextColor3 = TextColor
 SubLogo.TextSize = 12
 
+local MenuScroll = Instance.new("ScrollingFrame")
+MenuScroll.Parent = Sidebar
+MenuScroll.BackgroundTransparency = 1
+MenuScroll.Position = UDim2.new(0, 0, 0, 75)
+MenuScroll.Size = UDim2.new(1, 0, 1, -85)
+MenuScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+MenuScroll.ScrollBarThickness = 2
+MenuScroll.ScrollBarImageColor3 = AccentColor
+MenuScroll.BorderSizePixel = 0
+
 local MenuLayout = Instance.new("UIListLayout")
-MenuLayout.Parent = Sidebar
+MenuLayout.Parent = MenuScroll
 MenuLayout.SortOrder = Enum.SortOrder.LayoutOrder
 MenuLayout.Padding = UDim.new(0, 5)
-
 local MenuPadding = Instance.new("UIPadding")
-MenuPadding.Parent = Sidebar
-MenuPadding.PaddingTop = UDim.new(0, 85)
+MenuPadding.Parent = MenuScroll
 MenuPadding.PaddingLeft = UDim.new(0, 10)
 MenuPadding.PaddingRight = UDim.new(0, 10)
 
--- Top Bar
+-- Top Bar & Content Area
 local TopBar = Instance.new("Frame")
-TopBar.Name = "TopBar"
 TopBar.Parent = MainFrame
 TopBar.BackgroundColor3 = MainColor
 TopBar.Position = UDim2.new(0, 150, 0, 0)
 TopBar.Size = UDim2.new(1, -150, 0, 50)
-TopBar.BorderSizePixel = 0
-
-local SearchBox = Instance.new("Frame")
-SearchBox.Parent = TopBar
-SearchBox.BackgroundColor3 = ItemBg
-SearchBox.Position = UDim2.new(0, 15, 0.5, -12)
-SearchBox.Size = UDim2.new(0, 250, 0, 24)
-
-local SearchCorner = Instance.new("UICorner")
-SearchCorner.CornerRadius = UDim.new(0, 12)
-SearchCorner.Parent = SearchBox
-
-local SearchText = Instance.new("TextLabel")
-SearchText.Parent = SearchBox
-SearchText.BackgroundTransparency = 1
-SearchText.Position = UDim2.new(0, 10, 0, 0)
-SearchText.Size = UDim2.new(1, -10, 1, 0)
-SearchText.Font = Enum.Font.Gotham
-SearchText.Text = "🔍 Search..."
-SearchText.TextColor3 = TextGray
-SearchText.TextSize = 12
-SearchText.TextXAlignment = Enum.TextXAlignment.Left
 
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Parent = TopBar
@@ -172,23 +142,24 @@ CloseBtn.Size = UDim2.new(0, 24, 0, 24)
 CloseBtn.Text = "X"
 CloseBtn.TextColor3 = TextColor
 CloseBtn.Font = Enum.Font.GothamBold
-CloseBtn.TextSize = 12
-
 local CloseCorner = Instance.new("UICorner")
 CloseCorner.CornerRadius = UDim.new(1, 0)
 CloseCorner.Parent = CloseBtn
 CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
 
--- Content Area
 local ContentArea = Instance.new("Frame")
 ContentArea.Parent = MainFrame
 ContentArea.BackgroundColor3 = MainColor
 ContentArea.Position = UDim2.new(0, 160, 0, 55)
 ContentArea.Size = UDim2.new(1, -170, 1, -65)
-ContentArea.BorderSizePixel = 0
-ContentArea.ClipsDescendants = true
+local ContentLayout = Instance.new("UIListLayout")
+ContentLayout.Parent = ContentArea
+ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+ContentLayout.Padding = UDim.new(0, 5)
 
 local Pages = {}
+local MenuButtons = {}
+
 local function CreatePage(name)
     local Page = Instance.new("Frame")
     Page.Name = name
@@ -196,17 +167,18 @@ local function CreatePage(name)
     Page.BackgroundTransparency = 1
     Page.Size = UDim2.new(1, 0, 1, 0)
     Page.Visible = false
+    local layout = Instance.new("UIListLayout")
+    layout.Parent = Page
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Padding = UDim.new(0, 5)
     Pages[name] = Page
-    return Page
 end
 
-local MenuButtons = {}
 local function CreateMenuBtn(name, layoutOrder)
     local Btn = Instance.new("TextButton")
-    Btn.Parent = Sidebar
+    Btn.Parent = MenuScroll
     Btn.Size = UDim2.new(1, 0, 0, 30)
     Btn.BackgroundColor3 = SidebarColor
-    Btn.BorderSizePixel = 0
     Btn.Text = "  " .. name
     Btn.TextColor3 = TextGray
     Btn.Font = Enum.Font.GothamSemibold
@@ -217,7 +189,6 @@ local function CreateMenuBtn(name, layoutOrder)
     BtnCorner.CornerRadius = UDim.new(0, 5)
     BtnCorner.Parent = Btn
     MenuButtons[name] = Btn
-    return Btn
 end
 
 local function SwitchTab(tabName)
@@ -228,23 +199,21 @@ local function SwitchTab(tabName)
     end
 end
 
--- Tạo 10 Tab theo yêu cầu
 local tabNames = {"Main", "Boss", "Raid", "Fruit", "Sea Events", "ESP", "Teleport", "Combat", "Misc", "Race"}
 for i, name in ipairs(tabNames) do
-    local btn = CreateMenuBtn(name, i)
+    CreateMenuBtn(name, i)
     CreatePage(name)
-    btn.MouseButton1Click:Connect(function() SwitchTab(name) end)
+    MenuButtons[name].MouseButton1Click:Connect(function() SwitchTab(name) end)
 end
+MenuScroll.CanvasSize = UDim2.new(0, 0, 0, #tabNames * 35)
 SwitchTab("Main")
 
--- Hàm tạo Toggle Switch (Bật/tắt)
-local function CreateToggle(parent, text, flagName, callback)
+-- ================= CÁC HÀM TẠO UI =================
+local function CreateToggle(parent, text, flagName)
     local ToggleFrame = Instance.new("Frame")
     ToggleFrame.Parent = parent
     ToggleFrame.BackgroundColor3 = ItemBg
-    ToggleFrame.Size = UDim2.new(1, 0, 0, 30)
-    ToggleFrame.BorderSizePixel = 0
-    
+    ToggleFrame.Size = UDim2.new(1, 0, 0, 35)
     local ToggleCorner = Instance.new("UICorner")
     ToggleCorner.CornerRadius = UDim.new(0, 6)
     ToggleCorner.Parent = ToggleFrame
@@ -266,7 +235,6 @@ local function CreateToggle(parent, text, flagName, callback)
     ToggleBtn.Position = UDim2.new(1, -45, 0.5, -8)
     ToggleBtn.Size = UDim2.new(0, 30, 0, 16)
     ToggleBtn.Text = ""
-    
     local BtnCorner = Instance.new("UICorner")
     BtnCorner.CornerRadius = UDim.new(1, 0)
     BtnCorner.Parent = ToggleBtn
@@ -289,16 +257,14 @@ local function CreateToggle(parent, text, flagName, callback)
             ToggleBtn.BackgroundColor3 = SidebarColor
             TweenService:Create(Circle, TweenInfo.new(0.2), {Position = UDim2.new(0, 2, 0.5, -6)}):Play()
         end
-        if callback then callback(Flags[flagName]) end
     end)
 end
 
--- Hàm tạo nút bấm thường
 local function CreateButton(parent, text, callback)
     local Btn = Instance.new("TextButton")
     Btn.Parent = parent
     Btn.BackgroundColor3 = ItemBg
-    Btn.Size = UDim2.new(1, 0, 0, 30)
+    Btn.Size = UDim2.new(1, 0, 0, 35)
     Btn.Text = text
     Btn.TextColor3 = TextColor
     Btn.Font = Enum.Font.GothamSemibold
@@ -309,13 +275,11 @@ local function CreateButton(parent, text, callback)
     Btn.MouseButton1Click:Connect(callback)
 end
 
--- Hàm tạo Dropdown (Danh sách chọn)
 local function CreateDropdown(parent, text, options, callback)
     local DropFrame = Instance.new("Frame")
     DropFrame.Parent = parent
     DropFrame.BackgroundColor3 = ItemBg
-    DropFrame.Size = UDim2.new(1, 0, 0, 30)
-    DropFrame.BorderSizePixel = 0
+    DropFrame.Size = UDim2.new(1, 0, 0, 35)
     local DropCorner = Instance.new("UICorner")
     DropCorner.CornerRadius = UDim.new(0, 6)
     DropCorner.Parent = DropFrame
@@ -344,7 +308,6 @@ local function CreateDropdown(parent, text, options, callback)
     SelectCorner.CornerRadius = UDim.new(0, 4)
     SelectCorner.Parent = SelectBtn
 
-    -- (Đơn giản hóa: Chỉ đổi giá trị khi bấm, chưa làm menu xổ xuống phức tạp)
     local currentIndex = 1
     SelectBtn.MouseButton1Click:Connect(function()
         currentIndex = currentIndex + 1
@@ -356,217 +319,319 @@ end
 
 -- ================= TAB 1: MAIN (AUTO FARM) =================
 local MainPage = Pages["Main"]
-local MainLayout = Instance.new("UIListLayout")
-MainLayout.Parent = MainPage
-MainLayout.SortOrder = Enum.SortOrder.LayoutOrder
-MainLayout.Padding = UDim.new(0, 8)
+CreateToggle(MainPage, "Auto Farm Level (Quái gần nhất)", "AutoFarmLevel")
+CreateToggle(MainPage, "Auto Farm Chest", "AutoFarmChest")
+CreateToggle(MainPage, "Auto Farm Bone (Sea 3)", "AutoFarmBone")
 
--- Chức năng Auto Farm Level (Tự động tìm quái, đánh)
-CreateToggle(MainPage, "Auto Farm Level (Tự động đánh quái)", "AutoFarmLevel", function(state)
-    if state then
-        task.spawn(function()
-            while Flags.AutoFarmLevel do
-                task.wait(0.5)
-                pcall(function()
-                    local target = nil
-                    local minDist = math.huge
-                    -- Quét tìm quái vật gần nhất
-                    for _, v in pairs(Workspace.Enemies:GetChildren()) do
+CreateDropdown(MainPage, "Chọn vũ khí Mastery:", {"Sword", "Gun", "Melee"}, function(selected)
+    Flags.SelectedMasteryWeapon = selected
+end)
+CreateToggle(MainPage, "Auto Farm Mastery", "AutoFarmMastery")
+
+-- Logic Auto Farm Level
+task.spawn(function()
+    while task.wait(0.5) do
+        if Flags.AutoFarmLevel and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            pcall(function()
+                local hrp = player.Character.HumanoidRootPart
+                local target = nil
+                local minDist = math.huge
+                local enemies = Workspace:FindFirstChild("Enemies")
+                if enemies then
+                    for _, v in pairs(enemies:GetChildren()) do
                         if v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 and v:FindFirstChild("HumanoidRootPart") then
-                            local dist = (player.Character.HumanoidRootPart.Position - v.HumanoidRootPart.Position).Magnitude
+                            local dist = (hrp.Position - v.HumanoidRootPart.Position).Magnitude
                             if dist < minDist then
                                 minDist = dist
                                 target = v
                             end
                         end
                     end
-                    
-                    if target then
-                        -- Bay tới quái
-                        player.Character.HumanoidRootPart.CFrame = target.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
-                        -- Kích hoạt đánh (dùng VirtualUser để mô phỏng click chuột)
+                end
+                if target then
+                    hrp.CFrame = target.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
+                    VirtualUser:CaptureController()
+                    VirtualUser:ClickButton1(Vector2.new(0, 0))
+                end
+            end)
+        end
+    end
+end)
+
+-- Logic Auto Farm Chest
+task.spawn(function()
+    while task.wait(0.5) do
+        if Flags.AutoFarmChest and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            pcall(function()
+                local hrp = player.Character.HumanoidRootPart
+                for _, v in pairs(Workspace:GetChildren()) do
+                    if v.Name == "Chest" and v:FindFirstChild("HumanoidRootPart") then
+                        hrp.CFrame = v.HumanoidRootPart.CFrame
+                        break
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- Logic Auto Farm Bone
+task.spawn(function()
+    while task.wait(0.5) do
+        if Flags.AutoFarmBone and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            pcall(function()
+                local hrp = player.Character.HumanoidRootPart
+                for _, v in pairs(Workspace:GetChildren()) do
+                    if (v.Name == "Bone" or v.Name == "Bone2") and v:FindFirstChild("HumanoidRootPart") then
+                        hrp.CFrame = v.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
                         VirtualUser:CaptureController()
                         VirtualUser:ClickButton1(Vector2.new(0, 0))
+                        break
                     end
-                end)
-            end
-        end)
+                end
+            end)
+        end
     end
 end)
 
--- Chức năng Auto Farm Chest
-CreateToggle(MainPage, "Auto Farm Chest", "AutoFarmChest", function(state)
-    if state then
-        task.spawn(function()
-            while Flags.AutoFarmChest do
-                task.wait(0.5)
-                pcall(function()
-                    local chest = nil
-                    local minDist = math.huge
-                    for _, v in pairs(Workspace:GetChildren()) do
-                        if v.Name == "Chest" and v:FindFirstChild("HumanoidRootPart") then
-                            local dist = (player.Character.HumanoidRootPart.Position - v.HumanoidRootPart.Position).Magnitude
-                            if dist < minDist then
-                                minDist = dist
-                                chest = v
-                            end
-                        end
-                    end
-                    if chest then
-                        player.Character.HumanoidRootPart.CFrame = chest.HumanoidRootPart.CFrame
-                    end
-                end)
-            end
-        end)
-    end
-end)
-
--- Chức năng Auto Farm Bone (Sea 3)
-CreateToggle(MainPage, "Auto Farm Bone (Sea 3)", "AutoFarmBone", function(state)
-    if state then
-        task.spawn(function()
-            while Flags.AutoFarmBone do
-                task.wait(0.5)
-                pcall(function()
-                    local bone = nil
-                    local minDist = math.huge
-                    for _, v in pairs(Workspace:GetChildren()) do
-                        if (v.Name == "Bone" or v.Name == "Bone2") and v:FindFirstChild("HumanoidRootPart") then
-                            local dist = (player.Character.HumanoidRootPart.Position - v.HumanoidRootPart.Position).Magnitude
-                            if dist < minDist then
-                                minDist = dist
-                                bone = v
-                            end
-                        end
-                    end
-                    if bone then
-                        player.Character.HumanoidRootPart.CFrame = bone.HumanoidRootPart.CFrame
-                    end
-                end)
-            end
-        end)
-    end
-end)
-
--- Auto Farm Mastery (Có Dropdown chọn Vũ khí)
-CreateDropdown(MainPage, "Chọn loại vũ khí Farm Mastery:", {"Sword", "Gun", "Melee"}, function(selected)
-    Flags.SelectedMasteryWeapon = selected
-end)
-CreateToggle(MainPage, "Auto Farm Mastery", "AutoFarmMastery", function(state)
-    if state then
-        task.spawn(function()
-            while Flags.AutoFarmMastery do
-                task.wait(0.5)
-                pcall(function()
-                    -- Logic: Tìm boss/quái mạnh nhất, bay tới và đánh
-                    local target = nil
-                    local maxHealth = 0
-                    for _, v in pairs(Workspace.Enemies:GetChildren()) do
+-- Logic Auto Farm Mastery
+task.spawn(function()
+    while task.wait(0.5) do
+        if Flags.AutoFarmMastery and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            pcall(function()
+                local hrp = player.Character.HumanoidRootPart
+                local target = nil
+                local maxHealth = 0
+                local enemies = Workspace:FindFirstChild("Enemies")
+                if enemies then
+                    for _, v in pairs(enemies:GetChildren()) do
                         if v:FindFirstChild("Humanoid") and v.Humanoid.Health > maxHealth and v:FindFirstChild("HumanoidRootPart") then
                             maxHealth = v.Humanoid.Health
                             target = v
                         end
                     end
-                    if target then
-                        player.Character.HumanoidRootPart.CFrame = target.HumanoidRootPart.CFrame * CFrame.new(0, 10, 0)
-                        VirtualUser:CaptureController()
-                        VirtualUser:ClickButton1(Vector2.new(0, 0))
+                end
+                if target then
+                    hrp.CFrame = target.HumanoidRootPart.CFrame * CFrame.new(0, 10, 0)
+                    VirtualUser:CaptureController()
+                    VirtualUser:ClickButton1(Vector2.new(0, 0))
+                end
+            end)
+        end
+    end
+end)
+
+-- ================= TAB 2: BOSS =================
+local BossPage = Pages["Boss"]
+local bosses = {"Gorilla King", "Bobby", "The Saw", "Greybeard", "Diamond", "Jeremy", "Stone", "Island Empress", "Kilo Admiral", "Captain Elephant", "Soul Reaper", "Rip Indra", "Cake Prince", "Dough King", "Darkbeard", "Terror Shark", "Leviathan"}
+CreateDropdown(BossPage, "Chọn Boss:", bosses, function(selected) Flags.SelectedBoss = selected end)
+CreateToggle(BossPage, "Auto Farm Boss đã chọn", "AutoBoss")
+CreateToggle(BossPage, "Boss ESP", "BossESP")
+
+task.spawn(function()
+    while task.wait(0.5) do
+        if Flags.AutoBoss and Flags.SelectedBoss and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            pcall(function()
+                local hrp = player.Character.HumanoidRootPart
+                local boss = Workspace:FindFirstChild(Flags.SelectedBoss)
+                if boss and boss:FindFirstChild("HumanoidRootPart") then
+                    hrp.CFrame = boss.HumanoidRootPart.CFrame * CFrame.new(0, 10, 0)
+                    VirtualUser:CaptureController()
+                    VirtualUser:ClickButton1(Vector2.new(0, 0))
+                end
+            end)
+        end
+    end
+end)
+
+-- ================= TAB 3: RAID =================
+local RaidPage = Pages["Raid"]
+local raidChips = {"Flame", "Ice", "Quake", "Light", "Dark", "Spider", "Rumble", "Magma", "Buddha", "Sand"}
+CreateDropdown(RaidPage, "Chọn Raid Chip:", raidChips, function(selected) Flags.SelectedChip = selected end)
+CreateToggle(RaidPage, "Auto Start Raid", "AutoStartRaid")
+
+task.spawn(function()
+    while task.wait(1) do
+        if Flags.AutoStartRaid then
+            pcall(function()
+                CommF_:InvokeServer("RaidsNpc", "Select", Flags.SelectedChip or "Flame")
+                local button = Workspace:FindFirstChild("Map") and Workspace.Map:FindFirstChild("Boat Castle") and Workspace.Map["Boat Castle"]:FindFirstChild("RaidSummon2") and Workspace.Map["Boat Castle"].RaidSummon2:FindFirstChild("Button")
+                if button and button:FindFirstChild("Main") and button.Main:FindFirstChild("ClickDetector") then
+                    fireclickdetector(button.Main.ClickDetector)
+                end
+            end)
+        end
+    end
+end)
+
+-- ================= TAB 4: FRUIT =================
+local FruitPage = Pages["Fruit"]
+local fruitList = {"Rocket", "Spin", "Blade", "Spring", "Bomb", "Smoke", "Spike", "Flame", "Falcon", "Ice", "Sand", "Dark", "Diamond", "Light", "Rubber", "Barrier", "Ghost", "Magma", "Quake", "Buddha", "Love", "Spider", "Sound", "Phoenix", "Portal", "Rumble", "Pain", "Blizzard", "Gravity", "Mammoth", "T-Rex", "Dough", "Shadow", "Venom", "Control", "Spirit", "Dragon", "Leopard", "Kitsune"}
+CreateDropdown(FruitPage, "Chọn loại trái muốn tìm:", fruitList, function(selected) Flags.SelectedFruit = selected end)
+CreateToggle(FruitPage, "Auto Collect Fruit", "AutoCollectFruit")
+CreateToggle(FruitPage, "Fruit ESP", "FruitESP")
+CreateToggle(FruitPage, "Fruit Notification", "FruitNotify")
+
+task.spawn(function()
+    while task.wait(1) do
+        pcall(function()
+            local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+            for _, v in pairs(Workspace:GetChildren()) do
+                if (v.Name == "Fruit" or v.Name:find("Fruit")) and v:FindFirstChild("Handle") then
+                    if Flags.FruitESP and not ESPObjects[v] then
+                        local bill = Instance.new("BillboardGui")
+                        bill.Parent = v.Handle
+                        bill.AlwaysOnTop = true
+                        bill.Size = UDim2.new(0, 100, 0, 50)
+                        local text = Instance.new("TextLabel", bill)
+                        text.BackgroundTransparency = 1
+                        text.Size = UDim2.new(1, 0, 1, 0)
+                        text.Text = v.Name
+                        text.TextColor3 = Color3.fromRGB(255, 165, 0)
+                        text.Font = Enum.Font.GothamBold
+                        ESPObjects[v] = bill
                     end
-                end)
+                    if Flags.FruitNotify and not NotifiedFruits[v] then
+                        NotifiedFruits[v] = true
+                        print("[TNT HUB] Đã phát hiện trái: " .. v.Name .. "!")
+                    end
+                    if Flags.AutoCollectFruit and hrp then
+                        if Flags.SelectedFruit and v.Name:find(Flags.SelectedFruit) then
+                            hrp.CFrame = v.Handle.CFrame
+                        elseif not Flags.SelectedFruit then
+                            hrp.CFrame = v.Handle.CFrame
+                        end
+                    end
+                end
+            end
+            for obj, gui in pairs(ESPObjects) do
+                if not obj.Parent or not obj:FindFirstChild("Handle") then
+                    gui:Destroy()
+                    ESPObjects[obj] = nil
+                end
             end
         end)
     end
 end)
 
+-- ================= TAB 5: SEA EVENTS =================
+local EventPage = Pages["Sea Events"]
+local seaEvents = {"Sea Beast", "Terror Shark", "Leviathan", "Ship Raid", "Pirate Raid", "Cake Prince", "Dough King"}
+CreateDropdown(EventPage, "Chọn sự kiện:", seaEvents, function(selected) Flags.SelectedEvent = selected end)
+CreateToggle(EventPage, "Auto Farm sự kiện đã chọn", "AutoSeaEvent")
+CreateToggle(EventPage, "Sea Event ESP", "SeaEventESP")
+
 -- ================= TAB 6: ESP =================
 local ESPPage = Pages["ESP"]
-local ESPLayout = Instance.new("UIListLayout")
-ESPLayout.Parent = ESPPage
-ESPLayout.SortOrder = Enum.SortOrder.LayoutOrder
-ESPLayout.Padding = UDim.new(0, 8)
+CreateToggle(ESPPage, "Player ESP", "ESP_Players")
+CreateToggle(ESPPage, "Chest ESP", "ESP_Chests")
 
--- Biến lưu các đối tượng ESP để xóa khi tắt
-local ESPObjects = {}
-
-local function CreateESP(object, color, text)
-    if not object or not object:FindFirstChild("HumanoidRootPart") then return end
-    local Billboard = Instance.new("BillboardGui")
-    Billboard.Parent = object.HumanoidRootPart
-    Billboard.Name = "TNT_ESP"
-    Billboard.AlwaysOnTop = true
-    Billboard.Size = UDim2.new(0, 100, 0, 50)
-    
-    local TextLabel = Instance.new("TextLabel")
-    TextLabel.Parent = Billboard
-    TextLabel.BackgroundTransparency = 1
-    TextLabel.Size = UDim2.new(1, 0, 1, 0)
-    TextLabel.Font = Enum.Font.GothamBold
-    TextLabel.Text = text or object.Name
-    TextLabel.TextColor3 = color or Color3.new(1, 1, 1)
-    TextLabel.TextStrokeTransparency = 0
-    TextLabel.TextSize = 14
-    
-    ESPObjects[object] = Billboard
-end
-
--- Hàm quét và cập nhật ESP liên tục
 task.spawn(function()
-    while true do
-        task.wait(1)
-        -- Xóa ESP cũ
-        for obj, gui in pairs(ESPObjects) do
-            if gui and gui.Parent then gui:Destroy() end
-        end
-        ESPObjects = {}
-        
-        -- Tạo ESP mới nếu được bật
-        if Flags.ESP_Players then
-            for _, p in pairs(Players:GetPlayers()) do
-                if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                    CreateESP(p.Character, Color3.fromRGB(255, 0, 0), p.Name)
+    while task.wait(1) do
+        pcall(function()
+            if Flags.ESP_Players then
+                for _, p in pairs(Players:GetPlayers()) do
+                    if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                        if not ESPObjects[p.Character] then
+                            local bill = Instance.new("BillboardGui")
+                            bill.Parent = p.Character.HumanoidRootPart
+                            bill.AlwaysOnTop = true
+                            bill.Size = UDim2.new(0, 100, 0, 50)
+                            local text = Instance.new("TextLabel", bill)
+                            text.BackgroundTransparency = 1
+                            text.Size = UDim2.new(1, 0, 1, 0)
+                            text.Text = p.Name
+                            text.TextColor3 = Color3.fromRGB(255, 0, 0)
+                            text.Font = Enum.Font.GothamBold
+                            ESPObjects[p.Character] = bill
+                        end
+                    end
                 end
             end
-        end
-        if Flags.ESP_Fruits then
-            for _, v in pairs(Workspace:GetChildren()) do
-                if v.Name == "Fruit" and v:FindFirstChild("Handle") then
-                    CreateESP(v, Color3.fromRGB(255, 165, 0), "Fruit")
+            if Flags.ESP_Chests then
+                for _, v in pairs(Workspace:GetChildren()) do
+                    if v.Name == "Chest" and v:FindFirstChild("HumanoidRootPart") then
+                        if not ESPObjects[v] then
+                            local bill = Instance.new("BillboardGui")
+                            bill.Parent = v.HumanoidRootPart
+                            bill.AlwaysOnTop = true
+                            bill.Size = UDim2.new(0, 100, 0, 50)
+                            local text = Instance.new("TextLabel", bill)
+                            text.BackgroundTransparency = 1
+                            text.Size = UDim2.new(1, 0, 1, 0)
+                            text.Text = "Chest"
+                            text.TextColor3 = Color3.fromRGB(255, 215, 0)
+                            text.Font = Enum.Font.GothamBold
+                            ESPObjects[v] = bill
+                        end
+                    end
                 end
             end
+        end)
+    end
+end)
+
+-- ================= TAB 7: TELEPORT =================
+local TPPage = Pages["Teleport"]
+local islands = {"Sea 1 - Jungle", "Sea 1 - Pirate Village", "Sea 1 - Middle Town", "Sea 2 - Kingdom of Rose", "Sea 2 - Cafe", "Sea 3 - Port Town", "Sea 3 - Hydra Island", "Sea 3 - Floating Turtle"}
+CreateDropdown(TPPage, "Chọn Đảo:", islands, function(selected) Flags.SelectedIsland = selected end)
+CreateButton(TPPage, "Teleport đến Đảo đã chọn", function()
+    pcall(function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local tps = {
+                ["Sea 1 - Jungle"] = CFrame.new(-1340, 25, 500),
+                ["Sea 1 - Pirate Village"] = CFrame.new(-1000, 25, 3000),
+                ["Sea 2 - Kingdom of Rose"] = CFrame.new(1000, 50, 1000),
+            }
+            local target = tps[Flags.SelectedIsland or "Sea 1 - Jungle"]
+            if target then player.Character.HumanoidRootPart.CFrame = target end
         end
-        if Flags.ESP_Chests then
-            for _, v in pairs(Workspace:GetChildren()) do
-                if v.Name == "Chest" and v:FindFirstChild("HumanoidRootPart") then
-                    CreateESP(v, Color3.fromRGB(255, 215, 0), "Chest")
-                end
-            end
+    end)
+end)
+
+-- ================= TAB 8: COMBAT =================
+local CombatPage = Pages["Combat"]
+CreateToggle(CombatPage, "Aim Assist", "AimAssist")
+CreateToggle(CombatPage, "Kill Aura", "KillAura")
+
+-- ================= TAB 9: MISC =================
+local MiscPage = Pages["Misc"]
+CreateButton(MiscPage, "Rejoin Server", function()
+    game:GetService("TeleportService"):Teleport(game.PlaceId, player)
+end)
+CreateToggle(MiscPage, "Anti AFK", "AntiAFK")
+CreateButton(MiscPage, "FPS Boost (Giảm đồ họa)", function()
+    pcall(function()
+        Lighting.GlobalShadows = false
+        Lighting.FogEnd = 9e9
+        Lighting.OutdoorAmbient = Color3.new(1,1,1)
+        for _, v in pairs(Workspace:GetDescendants()) do
+            if v:IsA("BasePart") then v.Material = Enum.Material.SmoothPlastic end
+        end
+    end)
+end)
+
+task.spawn(function()
+    while task.wait(60) do
+        if Flags.AntiAFK then
+            pcall(function()
+                VirtualUser:CaptureController()
+                VirtualUser:ClickButton1(Vector2.new(0, 0))
+            end)
         end
     end
 end)
 
-CreateToggle(ESPPage, "Player ESP (Hiển thị người chơi)", "ESP_Players", function(state) end)
-CreateToggle(ESPPage, "Fruit ESP (Hiển thị trái cây)", "ESP_Fruits", function(state) end)
-CreateToggle(ESPPage, "Chest ESP (Hiển thị rương)", "ESP_Chests", function(state) end)
+-- ================= TAB 10: RACE =================
+local RacePage = Pages["Race"]
+CreateButton(RacePage, "Auto Race V2", function()
+    pcall(function() CommF_:InvokeServer("RaceV2") end)
+end)
+CreateButton(RacePage, "Auto Race V3", function()
+    pcall(function() CommF_:InvokeServer("RaceV3") end)
+end)
 
--- ================= CÁC TAB KHÁC (ĐANG CHỜ CODE) =================
--- Các tab Boss, Raid, Fruit, Sea Events, Teleport, Combat, Misc, Race sẽ có giao diện trống
--- và chờ bạn yêu cầu code chi tiết cho từng phần.
-
-for name, page in pairs(Pages) do
-    if name ~= "Main" and name ~= "ESP" then
-        local Placeholder = Instance.new("TextLabel")
-        Placeholder.Parent = page
-        Placeholder.BackgroundTransparency = 1
-        Placeholder.Size = UDim2.new(1, 0, 1, 0)
-        Placeholder.Font = Enum.Font.GothamBold
-        Placeholder.Text = "Khu vực: " .. name .. "\n(Chức năng đang được phát triển...)"
-        Placeholder.TextColor3 = TextGray
-        Placeholder.TextSize = 16
-    end
-end
-
--- Hiệu ứng mở GUI
+-- ================= KHỞI ĐỘNG =================
 MainFrame.Size = UDim2.new(0, 0, 0, 0)
 MainFrame:TweenSize(UDim2.new(0, 650, 0, 400), Enum.EasingDirection.Out, Enum.EasingStyle.Quart, 0.4, true)
-
-print("[TNT Hub] Đã tải thành công phiên bản nâng cấp!")
+print("[TNT Hub] Đã tải thành công phiên bản hoàn chỉnh 10 Tabs!")
