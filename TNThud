@@ -1,0 +1,348 @@
+-- Xóa GUI cũ nếu đã tồn tại
+if game:GetService("CoreGui"):FindFirstChild("TNT_Hub_UI") then
+    game:GetService("CoreGui").TNT_Hub_UI:Destroy()
+end
+
+local UserInputService = game:GetService("UserInputService")
+
+-- Khởi tạo ScreenGui
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "TNT_Hub_UI"
+ScreenGui.Parent = game:GetService("CoreGui")
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true -- Tràn viền đẹp hơn trên đt
+
+-- Màu sắc chủ đạo
+local MainColor = Color3.fromRGB(18, 15, 25)
+local SidebarColor = Color3.fromRGB(22, 18, 30)
+local AccentColor = Color3.fromRGB(130, 50, 255)
+local TextColor = Color3.fromRGB(255, 255, 255)
+local TextGray = Color3.fromRGB(150, 150, 160)
+local ItemBg = Color3.fromRGB(30, 25, 40)
+
+-- Main Frame (Kích thước cơ bản)
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = MainColor
+MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+MainFrame.Size = UDim2.new(0, 600, 0, 360) -- Thu nhỏ lại so với bản PC
+MainFrame.AnchorPoint = Vector2.new(0.5, 0.5) -- Neo ở giữa màn hình
+MainFrame.BorderSizePixel = 0
+
+-- TỰ ĐỘNG SCALE CHO ĐIỆN THOẠI
+local UIScale = Instance.new("UIScale")
+UIScale.Parent = MainFrame
+local viewport = workspace.CurrentCamera.ViewportSize
+local scaleFactor = 1
+-- Nếu màn hình điện thoại nhỏ hơn 700px, tự động thu nhỏ GUI
+if viewport.X < 800 then
+    scaleFactor = viewport.X / 650 
+end
+UIScale.Scale = scaleFactor
+
+-- Bo góc và viền Neon
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 10)
+UICorner.Parent = MainFrame
+
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = AccentColor
+UIStroke.Thickness = 1.5
+UIStroke.Transparency = 0.5
+UIStroke.Parent = MainFrame
+
+-- ================= LOGIC KÉO THẢ BẰNG CẢM ỨNG =================
+local dragging, dragInput, dragStart, startPos
+MainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+MainFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- ================= SIDEBAR =================
+local Sidebar = Instance.new("Frame")
+Sidebar.Name = "Sidebar"
+Sidebar.Parent = MainFrame
+Sidebar.BackgroundColor3 = SidebarColor
+Sidebar.Size = UDim2.new(0, 140, 1, 0)
+Sidebar.BorderSizePixel = 0
+
+local SidebarCorner = Instance.new("UICorner")
+SidebarCorner.CornerRadius = UDim.new(0, 10)
+SidebarCorner.Parent = Sidebar
+
+-- Logo TNT
+local Logo = Instance.new("TextLabel")
+Logo.Parent = Sidebar
+Logo.BackgroundTransparency = 1
+Logo.Position = UDim2.new(0, 0, 0, 15)
+Logo.Size = UDim2.new(1, 0, 0, 40)
+Logo.Font = Enum.Font.GothamBlack
+Logo.Text = "TNT"
+Logo.TextColor3 = AccentColor
+Logo.TextSize = 30
+
+local SubLogo = Instance.new("TextLabel")
+SubLogo.Parent = Logo
+SubLogo.BackgroundTransparency = 1
+SubLogo.Position = UDim2.new(0, 0, 1, -8)
+SubLogo.Size = UDim2.new(1, 0, 0, 15)
+SubLogo.Font = Enum.Font.GothamBold
+SubLogo.Text = "Script Hub"
+SubLogo.TextColor3 = TextColor
+SubLogo.TextSize = 11
+
+-- Menu Sidebar
+local MenuLayout = Instance.new("UIListLayout")
+MenuLayout.Parent = Sidebar
+MenuLayout.SortOrder = Enum.SortOrder.LayoutOrder
+MenuLayout.Padding = UDim.new(0, 4)
+
+local MenuPadding = Instance.new("UIPadding")
+MenuPadding.Parent = Sidebar
+MenuPadding.PaddingTop = UDim.new(0, 70)
+MenuPadding.PaddingLeft = UDim.new(0, 10)
+MenuPadding.PaddingRight = UDim.new(0, 10)
+
+local menuItems = {"Home", "Scripts", "Utilities", "Visuals", "Teleports", "Settings"}
+for i, v in pairs(menuItems) do
+    local Btn = Instance.new("TextButton")
+    Btn.Parent = Sidebar
+    Btn.Size = UDim2.new(1, 0, 0, 28)
+    Btn.BackgroundColor3 = (v == "Home") and AccentColor or SidebarColor
+    Btn.BorderSizePixel = 0
+    Btn.Text = "  " .. v
+    Btn.TextColor3 = (v == "Home") and TextColor or TextGray
+    Btn.Font = Enum.Font.GothamSemibold
+    Btn.TextSize = 12
+    Btn.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local BtnCorner = Instance.new("UICorner")
+    BtnCorner.CornerRadius = UDim.new(0, 5)
+    BtnCorner.Parent = Btn
+end
+
+-- ================= TOP BAR =================
+local TopBar = Instance.new("Frame")
+TopBar.Name = "TopBar"
+TopBar.Parent = MainFrame
+TopBar.BackgroundColor3 = MainColor
+TopBar.Position = UDim2.new(0, 140, 0, 0)
+TopBar.Size = UDim2.new(1, -140, 0, 45)
+TopBar.BorderSizePixel = 0
+
+-- Search Box
+local SearchBox = Instance.new("Frame")
+SearchBox.Parent = TopBar
+SearchBox.BackgroundColor3 = ItemBg
+SearchBox.Position = UDim2.new(0, 15, 0.5, -12)
+SearchBox.Size = UDim2.new(0, 220, 0, 24)
+
+local SearchCorner = Instance.new("UICorner")
+SearchCorner.CornerRadius = UDim.new(0, 12)
+SearchCorner.Parent = SearchBox
+
+local SearchText = Instance.new("TextLabel")
+SearchText.Parent = SearchBox
+SearchText.BackgroundTransparency = 1
+SearchText.Position = UDim2.new(0, 10, 0, 0)
+SearchText.Size = UDim2.new(1, -10, 1, 0)
+SearchText.Font = Enum.Font.Gotham
+SearchText.Text = "🔍 Search..."
+SearchText.TextColor3 = TextGray
+SearchText.TextSize = 11
+SearchText.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Nút Close (Dùng ngón tay bấm X để tắt)
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Parent = TopBar
+CloseBtn.BackgroundColor3 = ItemBg
+CloseBtn.Position = UDim2.new(1, -35, 0.5, -12)
+CloseBtn.Size = UDim2.new(0, 24, 0, 24)
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = TextColor
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextSize = 12
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(1, 0)
+CloseCorner.Parent = CloseBtn
+
+CloseBtn.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+end)
+
+-- ================= MAIN CONTENT =================
+local Content = Instance.new("Frame")
+Content.Parent = MainFrame
+Content.BackgroundColor3 = MainColor
+Content.Position = UDim2.new(0, 150, 0, 55)
+Content.Size = UDim2.new(1, -260, 1, -110) -- Chừa chỗ cho cột bên phải
+Content.BorderSizePixel = 0
+
+-- Banner
+local Banner = Instance.new("Frame")
+Banner.Parent = Content
+Banner.BackgroundColor3 = Color3.fromRGB(40, 20, 70)
+Banner.Size = UDim2.new(1, 0, 0, 80)
+
+local BannerCorner = Instance.new("UICorner")
+BannerCorner.CornerRadius = UDim.new(0, 8)
+BannerCorner.Parent = Banner
+
+local BannerText = Instance.new("TextLabel")
+BannerText.Parent = Banner
+BannerText.BackgroundTransparency = 1
+BannerText.Size = UDim2.new(1, -10, 1, -10)
+BannerText.Position = UDim2.new(0, 10, 0, 5)
+BannerText.Font = Enum.Font.GothamBlack
+BannerText.Text = "TNT Script Hub\n'Tận hưởng game!'"
+BannerText.TextColor3 = Color3.fromRGB(200, 150, 255)
+BannerText.TextSize = 16
+BannerText.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Tiêu đề
+local PopTitle = Instance.new("TextLabel")
+PopTitle.Parent = Content
+PopTitle.BackgroundTransparency = 1
+PopTitle.Position = UDim2.new(0, 0, 0, 95)
+PopTitle.Size = UDim2.new(1, 0, 0, 20)
+PopTitle.Font = Enum.Font.GothamBold
+PopTitle.Text = "⚡ Popular Scripts 🔥"
+PopTitle.TextColor3 = TextColor
+PopTitle.TextSize = 14
+PopTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Danh sách Script
+local scriptList = {"Auto Farm", "Kill Aura", "Fly Hack", "Speed Hack"}
+for i, scriptName in pairs(scriptList) do
+    local Item = Instance.new("Frame")
+    Item.Parent = Content
+    Item.BackgroundColor3 = ItemBg
+    Item.Position = UDim2.new(0, 0, 0, 125 + ((i-1) * 40))
+    Item.Size = UDim2.new(1, 0, 0, 32)
+    
+    local ItemCorner = Instance.new("UICorner")
+    ItemCorner.CornerRadius = UDim.new(0, 6)
+    ItemCorner.Parent = Item
+    
+    local ItemText = Instance.new("TextLabel")
+    ItemText.Parent = Item
+    ItemText.BackgroundTransparency = 1
+    ItemText.Position = UDim2.new(0, 10, 0, 0)
+    ItemText.Size = UDim2.new(1, -100, 1, 0)
+    ItemText.Font = Enum.Font.GothamBold
+    ItemText.Text = scriptName
+    ItemText.TextColor3 = TextColor
+    ItemText.TextSize = 12
+    ItemText.TextXAlignment = Enum.TextXAlignment.Left
+    
+    -- Toggle
+    local ToggleBg = Instance.new("Frame")
+    ToggleBg.Parent = Item
+    ToggleBg.BackgroundColor3 = AccentColor
+    ToggleBg.Position = UDim2.new(1, -70, 0.5, -8)
+    ToggleBg.Size = UDim2.new(0, 30, 0, 16)
+    
+    local ToggleCorner = Instance.new("UICorner")
+    ToggleCorner.CornerRadius = UDim.new(1, 0)
+    ToggleCorner.Parent = ToggleBg
+    
+    local ToggleCircle = Instance.new("Frame")
+    ToggleCircle.Parent = ToggleBg
+    ToggleCircle.BackgroundColor3 = TextColor
+    ToggleCircle.Position = UDim2.new(1, -14, 0.5, -7)
+    ToggleCircle.Size = UDim2.new(0, 14, 0, 14)
+    
+    local CircleCorner = Instance.new("UICorner")
+    CircleCorner.CornerRadius = UDim.new(1, 0)
+    CircleCorner.Parent = ToggleCircle
+    
+    -- Nút Play
+    local PlayBtn = Instance.new("TextButton")
+    PlayBtn.Parent = Item
+    PlayBtn.BackgroundColor3 = SidebarColor
+    PlayBtn.Position = UDim2.new(1, -35, 0.5, -12)
+    PlayBtn.Size = UDim2.new(0, 24, 0, 24)
+    PlayBtn.Text = "▶"
+    PlayBtn.TextColor3 = TextColor
+    PlayBtn.Font = Enum.Font.GothamBold
+    PlayBtn.TextSize = 10
+    
+    local PlayCorner = Instance.new("UICorner")
+    PlayCorner.CornerRadius = UDim.new(1, 0)
+    PlayCorner.Parent = PlayBtn
+end
+
+-- ================= RIGHT PANEL =================
+local RightPanel = Instance.new("Frame")
+RightPanel.Parent = MainFrame
+RightPanel.BackgroundColor3 = MainColor
+RightPanel.Position = UDim2.new(1, -100, 0, 55)
+RightPanel.Size = UDim2.new(0, 85, 1, -110)
+RightPanel.BorderSizePixel = 0
+
+-- Status Box
+local StatusBox = Instance.new("Frame")
+StatusBox.Parent = RightPanel
+StatusBox.BackgroundColor3 = ItemBg
+StatusBox.Size = UDim2.new(1, 0, 0, 85)
+
+local StatusCorner = Instance.new("UICorner")
+StatusCorner.CornerRadius = UDim.new(0, 6)
+StatusCorner.Parent = StatusBox
+
+local StatusText = Instance.new("TextLabel")
+StatusText.Parent = StatusBox
+StatusText.BackgroundTransparency = 1
+StatusText.Size = UDim2.new(1, -6, 1, -6)
+StatusText.Position = UDim2.new(0, 3, 0, 3)
+StatusText.Font = Enum.Font.GothamBold
+StatusText.Text = "Status\n\n🟢 Ready!\n\nSẵn sàng!"
+StatusText.TextColor3 = Color3.fromRGB(0, 255, 100)
+StatusText.TextSize = 11
+
+-- Info Box
+local InfoBox = Instance.new("Frame")
+InfoBox.Parent = RightPanel
+InfoBox.BackgroundColor3 = ItemBg
+InfoBox.Position = UDim2.new(0, 0, 0, 95)
+InfoBox.Size = UDim2.new(1, 0, 0, 90)
+
+local InfoCorner = Instance.new("UICorner")
+InfoCorner.CornerRadius = UDim.new(0, 6)
+InfoCorner.Parent = InfoBox
+
+local InfoText = Instance.new("TextLabel")
+InfoText.Parent = InfoBox
+InfoText.BackgroundTransparency = 1
+InfoText.Size = UDim2.new(1, -6, 1, -6)
+InfoText.Position = UDim2.new(0, 3, 0, 3)
+InfoText.Font = Enum.Font.Gotham
+InfoText.Text = "ℹ️ Info\n\nv2.0.0\nTNT Team\n01/11/2026"
+InfoText.TextColor3 = TextColor
+InfoText.TextSize = 10
+
+-- Hiệu ứng mở GUI mượt mà
+MainFrame.Size = UDim2.new(0, 0, 0, 0)
+MainFrame:TweenSize(UDim2.new(0, 600, 0, 360), Enum.EasingDirection.Out, Enum.EasingStyle.Quart, 0.4, true)
