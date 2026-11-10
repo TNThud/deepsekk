@@ -1,18 +1,35 @@
--- Xóa GUI cũ nếu đã tồn tại
+-- ================= KHỞI TẠO VÀ BIẾN TOÀN CỤC =================
 if game:GetService("CoreGui"):FindFirstChild("TNT_Hub_UI") then
     game:GetService("CoreGui").TNT_Hub_UI:Destroy()
 end
 
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local VirtualUser = game:GetService("VirtualUser")
+local player = Players.LocalPlayer
 
--- Khởi tạo ScreenGui
+-- Bảng lưu trữ trạng thái các chức năng
+local Flags = {
+    AutoFarmLevel = false,
+    AutoFarmChest = false,
+    AutoFarmBone = false,
+    AutoFarmMastery = false,
+    SelectedMasteryWeapon = "Sword", -- Sword, Gun, Melee
+    ESP_Players = false,
+    ESP_Fruits = false,
+    ESP_Chests = false,
+}
+
+-- ================= GIAO DIỆN CHÍNH =================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "TNT_Hub_UI"
 ScreenGui.Parent = game:GetService("CoreGui")
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
 
--- Màu sắc chủ đạo
 local MainColor = Color3.fromRGB(18, 15, 25)
 local SidebarColor = Color3.fromRGB(22, 18, 30)
 local AccentColor = Color3.fromRGB(130, 50, 255)
@@ -20,28 +37,21 @@ local TextColor = Color3.fromRGB(255, 255, 255)
 local TextGray = Color3.fromRGB(150, 150, 160)
 local ItemBg = Color3.fromRGB(30, 25, 40)
 
--- Main Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = MainColor
 MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-MainFrame.Size = UDim2.new(0, 620, 0, 380) -- Kích thước cơ bản
+MainFrame.Size = UDim2.new(0, 650, 0, 400)
 MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 MainFrame.BorderSizePixel = 0
 MainFrame.ClipsDescendants = true
 
--- Tự động Scale cho màn hình điện thoại
 local UIScale = Instance.new("UIScale")
 UIScale.Parent = MainFrame
-local viewport = workspace.CurrentCamera.ViewportSize
-local scaleFactor = 1
-if viewport.X < 800 then
-    scaleFactor = viewport.X / 680 
-end
-UIScale.Scale = scaleFactor
+local viewport = Workspace.CurrentCamera.ViewportSize
+UIScale.Scale = viewport.X < 800 and (viewport.X / 700) or 1
 
--- Bo góc và viền
 local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0, 10)
 UICorner.Parent = MainFrame
@@ -52,7 +62,7 @@ UIStroke.Thickness = 1.5
 UIStroke.Transparency = 0.5
 UIStroke.Parent = MainFrame
 
--- ================= LOGIC KÉO THẢ =================
+-- Logic kéo thả
 local dragging, dragInput, dragStart, startPos
 MainFrame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -76,19 +86,18 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- ================= SIDEBAR (CỘT TRÁI) =================
+-- Sidebar (Cột trái)
 local Sidebar = Instance.new("Frame")
 Sidebar.Name = "Sidebar"
 Sidebar.Parent = MainFrame
 Sidebar.BackgroundColor3 = SidebarColor
-Sidebar.Size = UDim2.new(0, 140, 1, 0)
+Sidebar.Size = UDim2.new(0, 150, 1, 0)
 Sidebar.BorderSizePixel = 0
 
 local SidebarCorner = Instance.new("UICorner")
 SidebarCorner.CornerRadius = UDim.new(0, 10)
 SidebarCorner.Parent = Sidebar
 
--- Khung Logo (Sửa lỗi đè chữ)
 local LogoFrame = Instance.new("Frame")
 LogoFrame.Parent = Sidebar
 LogoFrame.BackgroundTransparency = 1
@@ -114,7 +123,6 @@ SubLogo.Text = "Script Hub"
 SubLogo.TextColor3 = TextColor
 SubLogo.TextSize = 12
 
--- Layout cho Menu
 local MenuLayout = Instance.new("UIListLayout")
 MenuLayout.Parent = Sidebar
 MenuLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -122,17 +130,17 @@ MenuLayout.Padding = UDim.new(0, 5)
 
 local MenuPadding = Instance.new("UIPadding")
 MenuPadding.Parent = Sidebar
-MenuPadding.PaddingTop = UDim.new(0, 85) -- Đẩy menu xuống dưới logo
+MenuPadding.PaddingTop = UDim.new(0, 85)
 MenuPadding.PaddingLeft = UDim.new(0, 10)
 MenuPadding.PaddingRight = UDim.new(0, 10)
 
--- ================= TOP BAR =================
+-- Top Bar
 local TopBar = Instance.new("Frame")
 TopBar.Name = "TopBar"
 TopBar.Parent = MainFrame
 TopBar.BackgroundColor3 = MainColor
-TopBar.Position = UDim2.new(0, 140, 0, 0)
-TopBar.Size = UDim2.new(1, -140, 0, 50)
+TopBar.Position = UDim2.new(0, 150, 0, 0)
+TopBar.Size = UDim2.new(1, -150, 0, 50)
 TopBar.BorderSizePixel = 0
 
 local SearchBox = Instance.new("Frame")
@@ -169,68 +177,17 @@ CloseBtn.TextSize = 12
 local CloseCorner = Instance.new("UICorner")
 CloseCorner.CornerRadius = UDim.new(1, 0)
 CloseCorner.Parent = CloseBtn
+CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
 
-CloseBtn.MouseButton1Click:Connect(function()
-    ScreenGui:Destroy()
-end)
-
--- ================= RIGHT PANEL (CỘT PHẢI) =================
-local RightPanel = Instance.new("Frame")
-RightPanel.Parent = MainFrame
-RightPanel.BackgroundColor3 = MainColor
-RightPanel.Position = UDim2.new(1, -110, 0, 55)
-RightPanel.Size = UDim2.new(0, 95, 1, -115)
-RightPanel.BorderSizePixel = 0
-
-local StatusBox = Instance.new("Frame")
-StatusBox.Parent = RightPanel
-StatusBox.BackgroundColor3 = ItemBg
-StatusBox.Size = UDim2.new(1, 0, 0, 90)
-
-local StatusCorner = Instance.new("UICorner")
-StatusCorner.CornerRadius = UDim.new(0, 6)
-StatusCorner.Parent = StatusBox
-
-local StatusText = Instance.new("TextLabel")
-StatusText.Parent = StatusBox
-StatusText.BackgroundTransparency = 1
-StatusText.Size = UDim2.new(1, -6, 1, -6)
-StatusText.Position = UDim2.new(0, 3, 0, 3)
-StatusText.Font = Enum.Font.GothamBold
-StatusText.Text = "Status\n\n🟢 Ready!\n\nSẵn sàng!"
-StatusText.TextColor3 = Color3.fromRGB(0, 255, 100)
-StatusText.TextSize = 11
-
-local InfoBox = Instance.new("Frame")
-InfoBox.Parent = RightPanel
-InfoBox.BackgroundColor3 = ItemBg
-InfoBox.Position = UDim2.new(0, 0, 0, 100)
-InfoBox.Size = UDim2.new(1, 0, 0, 95)
-
-local InfoCorner = Instance.new("UICorner")
-InfoCorner.CornerRadius = UDim.new(0, 6)
-InfoCorner.Parent = InfoBox
-
-local InfoText = Instance.new("TextLabel")
-InfoText.Parent = InfoBox
-InfoText.BackgroundTransparency = 1
-InfoText.Size = UDim2.new(1, -6, 1, -6)
-InfoText.Position = UDim2.new(0, 3, 0, 3)
-InfoText.Font = Enum.Font.Gotham
-InfoText.Text = "ℹ️ Info\n\nv2.0.0\nTNT Team\n01/11/2026"
-InfoText.TextColor3 = TextColor
-InfoText.TextSize = 11
-
--- ================= CONTENT AREA (KHU VỰC CHUYỂN TAB) =================
+-- Content Area
 local ContentArea = Instance.new("Frame")
 ContentArea.Parent = MainFrame
 ContentArea.BackgroundColor3 = MainColor
-ContentArea.Position = UDim2.new(0, 150, 0, 55)
-ContentArea.Size = UDim2.new(1, -270, 1, -115) 
+ContentArea.Position = UDim2.new(0, 160, 0, 55)
+ContentArea.Size = UDim2.new(1, -170, 1, -65)
 ContentArea.BorderSizePixel = 0
 ContentArea.ClipsDescendants = true
 
--- Hàm tạo Trang (Page)
 local Pages = {}
 local function CreatePage(name)
     local Page = Instance.new("Frame")
@@ -243,7 +200,6 @@ local function CreatePage(name)
     return Page
 end
 
--- Hàm tạo Nút Menu
 local MenuButtons = {}
 local function CreateMenuBtn(name, layoutOrder)
     local Btn = Instance.new("TextButton")
@@ -257,136 +213,353 @@ local function CreateMenuBtn(name, layoutOrder)
     Btn.TextSize = 12
     Btn.TextXAlignment = Enum.TextXAlignment.Left
     Btn.LayoutOrder = layoutOrder
-    
     local BtnCorner = Instance.new("UICorner")
     BtnCorner.CornerRadius = UDim.new(0, 5)
     BtnCorner.Parent = Btn
-    
     MenuButtons[name] = Btn
     return Btn
 end
 
--- Hàm đổi Tab
 local function SwitchTab(tabName)
-    for pName, page in pairs(Pages) do
-        page.Visible = (pName == tabName)
-    end
+    for pName, page in pairs(Pages) do page.Visible = (pName == tabName) end
     for bName, btn in pairs(MenuButtons) do
-        if bName == tabName then
-            btn.BackgroundColor3 = AccentColor
-            btn.TextColor3 = TextColor
-        else
-            btn.BackgroundColor3 = SidebarColor
-            btn.TextColor3 = TextGray
-        end
+        btn.BackgroundColor3 = (bName == tabName) and AccentColor or SidebarColor
+        btn.TextColor3 = (bName == tabName) and TextColor or TextGray
     end
 end
 
--- Tạo các Tab
-local tabNames = {"Home", "Scripts", "Utilities", "Visuals", "Teleports", "Settings"}
-
+-- Tạo 10 Tab theo yêu cầu
+local tabNames = {"Main", "Boss", "Raid", "Fruit", "Sea Events", "ESP", "Teleport", "Combat", "Misc", "Race"}
 for i, name in ipairs(tabNames) do
     local btn = CreateMenuBtn(name, i)
-    local page = CreatePage(name)
+    CreatePage(name)
+    btn.MouseButton1Click:Connect(function() SwitchTab(name) end)
+end
+SwitchTab("Main")
+
+-- Hàm tạo Toggle Switch (Bật/tắt)
+local function CreateToggle(parent, text, flagName, callback)
+    local ToggleFrame = Instance.new("Frame")
+    ToggleFrame.Parent = parent
+    ToggleFrame.BackgroundColor3 = ItemBg
+    ToggleFrame.Size = UDim2.new(1, 0, 0, 30)
+    ToggleFrame.BorderSizePixel = 0
     
-    -- Gắn sự kiện click để chuyển tab
-    btn.MouseButton1Click:Connect(function()
-        SwitchTab(name)
+    local ToggleCorner = Instance.new("UICorner")
+    ToggleCorner.CornerRadius = UDim.new(0, 6)
+    ToggleCorner.Parent = ToggleFrame
+    
+    local Label = Instance.new("TextLabel")
+    Label.Parent = ToggleFrame
+    Label.BackgroundTransparency = 1
+    Label.Position = UDim2.new(0, 10, 0, 0)
+    Label.Size = UDim2.new(1, -60, 1, 0)
+    Label.Font = Enum.Font.GothamSemibold
+    Label.Text = text
+    Label.TextColor3 = TextColor
+    Label.TextSize = 12
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local ToggleBtn = Instance.new("TextButton")
+    ToggleBtn.Parent = ToggleFrame
+    ToggleBtn.BackgroundColor3 = SidebarColor
+    ToggleBtn.Position = UDim2.new(1, -45, 0.5, -8)
+    ToggleBtn.Size = UDim2.new(0, 30, 0, 16)
+    ToggleBtn.Text = ""
+    
+    local BtnCorner = Instance.new("UICorner")
+    BtnCorner.CornerRadius = UDim.new(1, 0)
+    BtnCorner.Parent = ToggleBtn
+    
+    local Circle = Instance.new("Frame")
+    Circle.Parent = ToggleBtn
+    Circle.BackgroundColor3 = TextColor
+    Circle.Position = UDim2.new(0, 2, 0.5, -6)
+    Circle.Size = UDim2.new(0, 12, 0, 12)
+    local CircleCorner = Instance.new("UICorner")
+    CircleCorner.CornerRadius = UDim.new(1, 0)
+    CircleCorner.Parent = Circle
+    
+    ToggleBtn.MouseButton1Click:Connect(function()
+        Flags[flagName] = not Flags[flagName]
+        if Flags[flagName] then
+            ToggleBtn.BackgroundColor3 = AccentColor
+            TweenService:Create(Circle, TweenInfo.new(0.2), {Position = UDim2.new(1, -14, 0.5, -6)}):Play()
+        else
+            ToggleBtn.BackgroundColor3 = SidebarColor
+            TweenService:Create(Circle, TweenInfo.new(0.2), {Position = UDim2.new(0, 2, 0.5, -6)}):Play()
+        end
+        if callback then callback(Flags[flagName]) end
     end)
 end
 
--- Đặt tab mặc định là Home
-SwitchTab("Home")
-
--- ================= THIẾT KẾ GIAO DIỆN TAB HOME =================
-local HomePage = Pages["Home"]
-
-local Banner = Instance.new("Frame")
-Banner.Parent = HomePage
-Banner.BackgroundColor3 = Color3.fromRGB(40, 20, 70)
-Banner.Size = UDim2.new(1, 0, 0, 80)
-
-local BannerCorner = Instance.new("UICorner")
-BannerCorner.CornerRadius = UDim.new(0, 8)
-BannerCorner.Parent = Banner
-
-local BannerText = Instance.new("TextLabel")
-BannerText.Parent = Banner
-BannerText.BackgroundTransparency = 1
-BannerText.Size = UDim2.new(1, -10, 1, -10)
-BannerText.Position = UDim2.new(0, 10, 0, 5)
-BannerText.Font = Enum.Font.GothamBlack
-BannerText.Text = "TNT Script Hub\n'Tận hưởng game!'"
-BannerText.TextColor3 = Color3.fromRGB(200, 150, 255)
-BannerText.TextSize = 16
-BannerText.TextXAlignment = Enum.TextXAlignment.Left
-
-local PopTitle = Instance.new("TextLabel")
-PopTitle.Parent = HomePage
-PopTitle.BackgroundTransparency = 1
-PopTitle.Position = UDim2.new(0, 0, 0, 95)
-PopTitle.Size = UDim2.new(1, 0, 0, 20)
-PopTitle.Font = Enum.Font.GothamBold
-PopTitle.Text = "⚡ Popular Scripts 🔥"
-PopTitle.TextColor3 = TextColor
-PopTitle.TextSize = 14
-PopTitle.TextXAlignment = Enum.TextXAlignment.Left
-
--- Danh sách Script ở Home
-local scriptList = {"Auto Farm", "Kill Aura", "Fly Hack", "Speed Hack"}
-for i, scriptName in pairs(scriptList) do
-    local Item = Instance.new("Frame")
-    Item.Parent = HomePage
-    Item.BackgroundColor3 = ItemBg
-    Item.Position = UDim2.new(0, 0, 0, 125 + ((i-1) * 45))
-    Item.Size = UDim2.new(1, 0, 0, 35)
-    
-    local ItemCorner = Instance.new("UICorner")
-    ItemCorner.CornerRadius = UDim.new(0, 6)
-    ItemCorner.Parent = Item
-    
-    local ItemText = Instance.new("TextLabel")
-    ItemText.Parent = Item
-    ItemText.BackgroundTransparency = 1
-    ItemText.Position = UDim2.new(0, 10, 0, 0)
-    ItemText.Size = UDim2.new(1, -100, 1, 0)
-    ItemText.Font = Enum.Font.GothamBold
-    ItemText.Text = scriptName
-    ItemText.TextColor3 = TextColor
-    ItemText.TextSize = 12
-    ItemText.TextXAlignment = Enum.TextXAlignment.Left
-    
-    -- Nút Toggle giả
-    local ToggleBg = Instance.new("Frame")
-    ToggleBg.Parent = Item
-    ToggleBg.BackgroundColor3 = AccentColor
-    ToggleBg.Position = UDim2.new(1, -70, 0.5, -8)
-    ToggleBg.Size = UDim2.new(0, 30, 0, 16)
-    
-    local ToggleCorner = Instance.new("UICorner")
-    ToggleCorner.CornerRadius = UDim.new(1, 0)
-    ToggleCorner.Parent = ToggleBg
-    
-    local ToggleCircle = Instance.new("Frame")
-    ToggleCircle.Parent = ToggleBg
-    ToggleCircle.BackgroundColor3 = TextColor
-    ToggleCircle.Position = UDim2.new(1, -14, 0.5, -7)
-    ToggleCircle.Size = UDim2.new(0, 14, 0, 14)
-    
-    local CircleCorner = Instance.new("UICorner")
-    CircleCorner.CornerRadius = UDim.new(1, 0)
-    CircleCorner.Parent = ToggleCircle
+-- Hàm tạo nút bấm thường
+local function CreateButton(parent, text, callback)
+    local Btn = Instance.new("TextButton")
+    Btn.Parent = parent
+    Btn.BackgroundColor3 = ItemBg
+    Btn.Size = UDim2.new(1, 0, 0, 30)
+    Btn.Text = text
+    Btn.TextColor3 = TextColor
+    Btn.Font = Enum.Font.GothamSemibold
+    Btn.TextSize = 12
+    local BtnCorner = Instance.new("UICorner")
+    BtnCorner.CornerRadius = UDim.new(0, 6)
+    BtnCorner.Parent = Btn
+    Btn.MouseButton1Click:Connect(callback)
 end
 
--- ================= THIẾT KẾ CÁC TAB TRỐNG (CHỜ BẠN ĐƯA CHỨC NĂNG) =================
+-- Hàm tạo Dropdown (Danh sách chọn)
+local function CreateDropdown(parent, text, options, callback)
+    local DropFrame = Instance.new("Frame")
+    DropFrame.Parent = parent
+    DropFrame.BackgroundColor3 = ItemBg
+    DropFrame.Size = UDim2.new(1, 0, 0, 30)
+    DropFrame.BorderSizePixel = 0
+    local DropCorner = Instance.new("UICorner")
+    DropCorner.CornerRadius = UDim.new(0, 6)
+    DropCorner.Parent = DropFrame
+
+    local Label = Instance.new("TextLabel")
+    Label.Parent = DropFrame
+    Label.BackgroundTransparency = 1
+    Label.Position = UDim2.new(0, 10, 0, 0)
+    Label.Size = UDim2.new(1, -100, 1, 0)
+    Label.Font = Enum.Font.GothamSemibold
+    Label.Text = text
+    Label.TextColor3 = TextColor
+    Label.TextSize = 12
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+
+    local SelectBtn = Instance.new("TextButton")
+    SelectBtn.Parent = DropFrame
+    SelectBtn.BackgroundColor3 = SidebarColor
+    SelectBtn.Position = UDim2.new(1, -90, 0.5, -10)
+    SelectBtn.Size = UDim2.new(0, 80, 0, 20)
+    SelectBtn.Text = options[1]
+    SelectBtn.TextColor3 = TextColor
+    SelectBtn.Font = Enum.Font.Gotham
+    SelectBtn.TextSize = 11
+    local SelectCorner = Instance.new("UICorner")
+    SelectCorner.CornerRadius = UDim.new(0, 4)
+    SelectCorner.Parent = SelectBtn
+
+    -- (Đơn giản hóa: Chỉ đổi giá trị khi bấm, chưa làm menu xổ xuống phức tạp)
+    local currentIndex = 1
+    SelectBtn.MouseButton1Click:Connect(function()
+        currentIndex = currentIndex + 1
+        if currentIndex > #options then currentIndex = 1 end
+        SelectBtn.Text = options[currentIndex]
+        if callback then callback(options[currentIndex]) end
+    end)
+end
+
+-- ================= TAB 1: MAIN (AUTO FARM) =================
+local MainPage = Pages["Main"]
+local MainLayout = Instance.new("UIListLayout")
+MainLayout.Parent = MainPage
+MainLayout.SortOrder = Enum.SortOrder.LayoutOrder
+MainLayout.Padding = UDim.new(0, 8)
+
+-- Chức năng Auto Farm Level (Tự động tìm quái, đánh)
+CreateToggle(MainPage, "Auto Farm Level (Tự động đánh quái)", "AutoFarmLevel", function(state)
+    if state then
+        task.spawn(function()
+            while Flags.AutoFarmLevel do
+                task.wait(0.5)
+                pcall(function()
+                    local target = nil
+                    local minDist = math.huge
+                    -- Quét tìm quái vật gần nhất
+                    for _, v in pairs(Workspace.Enemies:GetChildren()) do
+                        if v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 and v:FindFirstChild("HumanoidRootPart") then
+                            local dist = (player.Character.HumanoidRootPart.Position - v.HumanoidRootPart.Position).Magnitude
+                            if dist < minDist then
+                                minDist = dist
+                                target = v
+                            end
+                        end
+                    end
+                    
+                    if target then
+                        -- Bay tới quái
+                        player.Character.HumanoidRootPart.CFrame = target.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
+                        -- Kích hoạt đánh (dùng VirtualUser để mô phỏng click chuột)
+                        VirtualUser:CaptureController()
+                        VirtualUser:ClickButton1(Vector2.new(0, 0))
+                    end
+                end)
+            end
+        end)
+    end
+end)
+
+-- Chức năng Auto Farm Chest
+CreateToggle(MainPage, "Auto Farm Chest", "AutoFarmChest", function(state)
+    if state then
+        task.spawn(function()
+            while Flags.AutoFarmChest do
+                task.wait(0.5)
+                pcall(function()
+                    local chest = nil
+                    local minDist = math.huge
+                    for _, v in pairs(Workspace:GetChildren()) do
+                        if v.Name == "Chest" and v:FindFirstChild("HumanoidRootPart") then
+                            local dist = (player.Character.HumanoidRootPart.Position - v.HumanoidRootPart.Position).Magnitude
+                            if dist < minDist then
+                                minDist = dist
+                                chest = v
+                            end
+                        end
+                    end
+                    if chest then
+                        player.Character.HumanoidRootPart.CFrame = chest.HumanoidRootPart.CFrame
+                    end
+                end)
+            end
+        end)
+    end
+end)
+
+-- Chức năng Auto Farm Bone (Sea 3)
+CreateToggle(MainPage, "Auto Farm Bone (Sea 3)", "AutoFarmBone", function(state)
+    if state then
+        task.spawn(function()
+            while Flags.AutoFarmBone do
+                task.wait(0.5)
+                pcall(function()
+                    local bone = nil
+                    local minDist = math.huge
+                    for _, v in pairs(Workspace:GetChildren()) do
+                        if (v.Name == "Bone" or v.Name == "Bone2") and v:FindFirstChild("HumanoidRootPart") then
+                            local dist = (player.Character.HumanoidRootPart.Position - v.HumanoidRootPart.Position).Magnitude
+                            if dist < minDist then
+                                minDist = dist
+                                bone = v
+                            end
+                        end
+                    end
+                    if bone then
+                        player.Character.HumanoidRootPart.CFrame = bone.HumanoidRootPart.CFrame
+                    end
+                end)
+            end
+        end)
+    end
+end)
+
+-- Auto Farm Mastery (Có Dropdown chọn Vũ khí)
+CreateDropdown(MainPage, "Chọn loại vũ khí Farm Mastery:", {"Sword", "Gun", "Melee"}, function(selected)
+    Flags.SelectedMasteryWeapon = selected
+end)
+CreateToggle(MainPage, "Auto Farm Mastery", "AutoFarmMastery", function(state)
+    if state then
+        task.spawn(function()
+            while Flags.AutoFarmMastery do
+                task.wait(0.5)
+                pcall(function()
+                    -- Logic: Tìm boss/quái mạnh nhất, bay tới và đánh
+                    local target = nil
+                    local maxHealth = 0
+                    for _, v in pairs(Workspace.Enemies:GetChildren()) do
+                        if v:FindFirstChild("Humanoid") and v.Humanoid.Health > maxHealth and v:FindFirstChild("HumanoidRootPart") then
+                            maxHealth = v.Humanoid.Health
+                            target = v
+                        end
+                    end
+                    if target then
+                        player.Character.HumanoidRootPart.CFrame = target.HumanoidRootPart.CFrame * CFrame.new(0, 10, 0)
+                        VirtualUser:CaptureController()
+                        VirtualUser:ClickButton1(Vector2.new(0, 0))
+                    end
+                end)
+            end
+        end)
+    end
+end)
+
+-- ================= TAB 6: ESP =================
+local ESPPage = Pages["ESP"]
+local ESPLayout = Instance.new("UIListLayout")
+ESPLayout.Parent = ESPPage
+ESPLayout.SortOrder = Enum.SortOrder.LayoutOrder
+ESPLayout.Padding = UDim.new(0, 8)
+
+-- Biến lưu các đối tượng ESP để xóa khi tắt
+local ESPObjects = {}
+
+local function CreateESP(object, color, text)
+    if not object or not object:FindFirstChild("HumanoidRootPart") then return end
+    local Billboard = Instance.new("BillboardGui")
+    Billboard.Parent = object.HumanoidRootPart
+    Billboard.Name = "TNT_ESP"
+    Billboard.AlwaysOnTop = true
+    Billboard.Size = UDim2.new(0, 100, 0, 50)
+    
+    local TextLabel = Instance.new("TextLabel")
+    TextLabel.Parent = Billboard
+    TextLabel.BackgroundTransparency = 1
+    TextLabel.Size = UDim2.new(1, 0, 1, 0)
+    TextLabel.Font = Enum.Font.GothamBold
+    TextLabel.Text = text or object.Name
+    TextLabel.TextColor3 = color or Color3.new(1, 1, 1)
+    TextLabel.TextStrokeTransparency = 0
+    TextLabel.TextSize = 14
+    
+    ESPObjects[object] = Billboard
+end
+
+-- Hàm quét và cập nhật ESP liên tục
+task.spawn(function()
+    while true do
+        task.wait(1)
+        -- Xóa ESP cũ
+        for obj, gui in pairs(ESPObjects) do
+            if gui and gui.Parent then gui:Destroy() end
+        end
+        ESPObjects = {}
+        
+        -- Tạo ESP mới nếu được bật
+        if Flags.ESP_Players then
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                    CreateESP(p.Character, Color3.fromRGB(255, 0, 0), p.Name)
+                end
+            end
+        end
+        if Flags.ESP_Fruits then
+            for _, v in pairs(Workspace:GetChildren()) do
+                if v.Name == "Fruit" and v:FindFirstChild("Handle") then
+                    CreateESP(v, Color3.fromRGB(255, 165, 0), "Fruit")
+                end
+            end
+        end
+        if Flags.ESP_Chests then
+            for _, v in pairs(Workspace:GetChildren()) do
+                if v.Name == "Chest" and v:FindFirstChild("HumanoidRootPart") then
+                    CreateESP(v, Color3.fromRGB(255, 215, 0), "Chest")
+                end
+            end
+        end
+    end
+end)
+
+CreateToggle(ESPPage, "Player ESP (Hiển thị người chơi)", "ESP_Players", function(state) end)
+CreateToggle(ESPPage, "Fruit ESP (Hiển thị trái cây)", "ESP_Fruits", function(state) end)
+CreateToggle(ESPPage, "Chest ESP (Hiển thị rương)", "ESP_Chests", function(state) end)
+
+-- ================= CÁC TAB KHÁC (ĐANG CHỜ CODE) =================
+-- Các tab Boss, Raid, Fruit, Sea Events, Teleport, Combat, Misc, Race sẽ có giao diện trống
+-- và chờ bạn yêu cầu code chi tiết cho từng phần.
+
 for name, page in pairs(Pages) do
-    if name ~= "Home" then
+    if name ~= "Main" and name ~= "ESP" then
         local Placeholder = Instance.new("TextLabel")
         Placeholder.Parent = page
         Placeholder.BackgroundTransparency = 1
         Placeholder.Size = UDim2.new(1, 0, 1, 0)
         Placeholder.Font = Enum.Font.GothamBold
-        Placeholder.Text = "Khu vực: " .. name .. "\n(Đang chờ code chức năng...)"
+        Placeholder.Text = "Khu vực: " .. name .. "\n(Chức năng đang được phát triển...)"
         Placeholder.TextColor3 = TextGray
         Placeholder.TextSize = 16
     end
@@ -394,4 +567,6 @@ end
 
 -- Hiệu ứng mở GUI
 MainFrame.Size = UDim2.new(0, 0, 0, 0)
-MainFrame:TweenSize(UDim2.new(0, 620, 0, 380), Enum.EasingDirection.Out, Enum.EasingStyle.Quart, 0.4, true)
+MainFrame:TweenSize(UDim2.new(0, 650, 0, 400), Enum.EasingDirection.Out, Enum.EasingStyle.Quart, 0.4, true)
+
+print("[TNT Hub] Đã tải thành công phiên bản nâng cấp!")
